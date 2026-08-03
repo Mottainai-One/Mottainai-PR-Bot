@@ -1,0 +1,37 @@
+{
+  "name": "mottainai-pr-bot",
+  "version": "1.0.0",
+  "description": "GitHub App que automatiza a criacao de Pull Requests, validacao por IA (Gemini) e auto-merge com 2 approvals na organizacao Mottainai-One",
+  "type": "module",
+  "main": "dist/server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node node_modules/typescript/bin/tsc -p tsconfig.json",
+    "dev": "node node_modules/tsx/dist/cli.mjs watch src/server.ts",
+    "dev:smee": "node scripts/dev.mjs",
+    "start": "node dist/server.js",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"
+  },
+  "keywords": [
+    "github",
+    "bot",
+    "probot",
+    "automation",
+    "pull-request",
+    "gemini"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "dotenv": "^16.4.5",
+    "probot": "^13.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "smee-client": "^1.2.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}

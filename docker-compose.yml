@@ -1,0 +1,9 @@
+services:
+  pr-bot:
+    build: .
+    container_name: mottainai-pr-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"

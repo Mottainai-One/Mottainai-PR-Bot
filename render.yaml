@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: mottainai-pr-bot
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /probot
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_ID
+        sync: false
+      - key: PRIVATE_KEY
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
+      - key: GITHUB_ORG
+        value: Mottainai-One
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.1-flash-lite
+      - key: MIN_APPROVALS
+        value: "2"
+      - key: PROTECTED_BRANCHES
+        value: main,develop
+      - key: PORT
+        value: "3000"

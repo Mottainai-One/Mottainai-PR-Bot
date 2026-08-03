@@ -1,0 +1,55 @@
+#!/bin/sh
+# post-push hook: imprime o link da PR criada pelo Mottainai PR Bot.
+# Instalar em <repo>/.git/hooks/post-push
+
+set -u
+
+branch=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/*)
+      case "$remote_sha" in
+        0000000000000000000000000000000000000000) continue ;;
+      esac
+      branch="${remote_ref#refs/heads/}"
+      ;;
+    *) continue ;;
+  esac
+done
+
+[ -z "${branch:-}" ] && exit 0
+
+repo="$(git config --get remote.origin.url || true)"
+case "$repo" in
+  *github.com*[:/]*)
+    repo="${repo#*github.com[:/]}"
+    repo="${repo%.git}"
+    ;;
+esac
+
+echo ""
+echo "==> Procurando PR automatica para a branch '$branch' em $repo ..."
+
+url=""
+i=0
+while [ "$i" -lt 30 ]; do
+  url="$(gh pr list --repo "$repo" --head "$branch" --state open --json url --jq '.[0].url' 2>/dev/null)"
+  [ -n "$url" ] && break
+  i=$((i + 1))
+  sleep 2
+done
+
+echo ""
+if [ -n "$url" ]; then
+  echo "=============================="
+  echo "  PR: $url"
+  echo "=============================="
+else
+  def_branch="$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)"
+  def_branch="${def_branch#origin/}"
+  [ -z "$def_branch" ] && def_branch="main"
+  echo "PR ainda nao encontrada (o bot pode estar offline). Crie manualmente:"
+  echo "  https://github.com/$repo/compare/$def_branch...$branch"
+fi
+echo ""
+exit 0
