@@ -117,6 +117,17 @@ O `dev:smee` sobe o túnel do Smee e o bot juntos, com hot-reload. O GitHub entr
 docker compose up -d --build
 ```
 
+### Produção (Render)
+
+1. Crie o repositório `Mottainai-One/mottainai-pr-bot` com este código (já contém `render.yaml`).
+2. No dashboard do Render: **New → Blueprint** → selecione o repositório.
+3. O Render lê o `render.yaml` e cria o web service.
+4. Preencha os **Environment Variables** `sync: false` (`APP_ID`, `PRIVATE_KEY`, `WEBHOOK_SECRET`, `GEMINI_API_KEY`) no painel do Render.
+   - `PRIVATE_KEY`: cole o conteúdo da chave `.pem` inteiro (multilinha) ou em uma linha com `\n`.
+5. Após o deploy, copie a URL do serviço (ex: `https://mottainai-pr-bot.onrender.com`).
+6. No GitHub App, atualize a **Webhook URL** para `https://mottainai-pr-bot.onrender.com/` e o secret para o mesmo valor de `WEBHOOK_SECRET`.
+7. Health check automático em `/probot` (já configurado no `render.yaml`).
+
 ## Estrutura
 
 ```
