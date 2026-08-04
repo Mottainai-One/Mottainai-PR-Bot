@@ -29,16 +29,17 @@ export async function detectBaseBranch(
     per_page: 100,
   });
 
-  const candidates = branches
-    .map((b) => b.name)
-    .filter((b) => b !== branch)
-    .sort((a, b) => {
-      const pa = config.protectedBranches.includes(a) ? 0 : 1;
-      const pb = config.protectedBranches.includes(b) ? 0 : 1;
-      return pa - pb;
-    });
+  // Apenas troncos (branches protegidas + default) sao candidatos a base.
+  const candidates = [
+    ...new Set(
+      [...config.protectedBranches, defaultBranch]
+        .map((b) => b.trim())
+        .filter(Boolean)
+        .filter((b) => b !== branch)
+    ),
+  ].filter((b) => branches.some((x) => x.name === b));
 
-  let best: { base: string; ahead: number } | null = null;
+  let best: { base: string; ahead: number; behind: number } | null = null;
 
   for (const base of candidates) {
     try {
@@ -48,10 +49,18 @@ export async function detectBaseBranch(
         base,
         head: branch,
       });
-      if (data.status === "ahead" && (data.ahead_by ?? 0) > 0) {
-        if (!best || data.ahead_by < best.ahead) {
-          best = { base, ahead: data.ahead_by };
-        }
+      const ahead = data.ahead_by ?? 0;
+      const behind = data.behind_by ?? 0;
+      if (ahead <= 0) continue;
+
+      // Menor divergencia total (ahead + behind); empate: menor ahead.
+      const score = ahead + behind;
+      if (
+        !best ||
+        score < best.ahead + best.behind ||
+        (score === best.ahead + best.behind && ahead < best.ahead)
+      ) {
+        best = { base, ahead, behind };
       }
     } catch {
       // branch sem merge-base com este candidato
@@ -59,7 +68,9 @@ export async function detectBaseBranch(
   }
 
   if (best) {
-    context.log.info(`Base detectada para ${branch}: ${best.base} (${best.ahead} commit(s) a frente)`);
+    context.log.info(
+      `Base detectada para ${branch}: ${best.base} (ahead ${best.ahead}, behind ${best.behind})`
+    );
     return best.base;
   }
 
