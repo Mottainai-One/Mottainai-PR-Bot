@@ -53,12 +53,13 @@ export async function detectBaseBranch(
       const behind = data.behind_by ?? 0;
       if (ahead <= 0) continue;
 
-      // Menor divergencia total (ahead + behind); empate: menor ahead.
-      const score = ahead + behind;
+      // Menor ahead_by identifica o tronco de origem: nele, "ahead" sao
+      // apenas os commits da propria branch. Outros troncos somam a
+      // divergencia entre si. Empate: menor behind_by.
       if (
         !best ||
-        score < best.ahead + best.behind ||
-        (score === best.ahead + best.behind && ahead < best.ahead)
+        ahead < best.ahead ||
+        (ahead === best.ahead && behind < best.behind)
       ) {
         best = { base, ahead, behind };
       }
