@@ -92,14 +92,34 @@ export function typeOfChangeFromBranch(branch: string): string {
 }
 
 export function prTitleFromBranch(branch: string, fallbackCommit?: string): string {
-  const firstLine = fallbackCommit?.split("\n")[0]?.trim();
-  if (firstLine && !firstLine.startsWith("Merge") && firstLine.length > 0 && firstLine.length <= 72) {
-    return firstLine;
-  }
   const prefix = branch.split("/")[0].toLowerCase();
   const conventional = CONVENTIONAL_PREFIX[prefix] || "feat";
+
+  const firstLine = fallbackCommit?.split("\n")[0]?.trim();
+  if (firstLine && !firstLine.startsWith("Merge")) {
+    // Já tem prefixo convencional? usa como está.
+    const m = firstLine.match(/^([a-z]+)(\([^)]*\))?(!?):\s*(.+)$/i);
+    if (m) {
+      const label = m[1].toLowerCase();
+      if (CONVENTIONAL_PREFIX[label] || ["feat", "fix", "docs", "chore", "test", "refactor", "ci", "style", "perf", "build", "revert"].includes(label)) {
+        const title = `${m[1].toLowerCase()}${m[2] || ""}${m[3] || ""}: ${m[4].trim()}`;
+        if (title.length <= 72) return title;
+      }
+    }
+    // Sem prefixo: capitaliza e adiciona o prefixo da branch.
+    if (firstLine.length > 0 && firstLine.length <= 60) {
+      const capitalized = firstLine.charAt(0).toUpperCase() + firstLine.slice(1);
+      return `${conventional}: ${capitalized}`;
+    }
+  }
+
   const name = branch.split("/").slice(1).join(" ") || branch;
-  return `${conventional}: ${name}`;
+  const readable = name
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const capitalized = readable.charAt(0).toUpperCase() + readable.slice(1);
+  return `${conventional}: ${capitalized}`;
 }
 
 export function buildPrBody(

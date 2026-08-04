@@ -105,10 +105,15 @@ export async function fetchRepoPrTemplate(
   repo: string,
   base: string
 ): Promise<string | undefined> {
-  const refs = [base];
+  const refs: string[] = [];
+  for (const r of [base, ...config.protectedBranches]) {
+    if (r && !refs.includes(r)) refs.push(r);
+  }
   try {
     const { data } = await context.octokit.repos.get({ owner, repo });
-    if (data.default_branch && !refs.includes(data.default_branch)) refs.push(data.default_branch);
+    if (data.default_branch && !refs.includes(data.default_branch)) {
+      refs.push(data.default_branch);
+    }
   } catch {
     // sem acesso ao repo metadata
   }
