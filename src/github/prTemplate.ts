@@ -102,12 +102,18 @@ export function prTitleFromBranch(branch: string, fallbackCommit?: string): stri
   return `${conventional}: ${name}`;
 }
 
-export function buildPrBody(branch: string, base: string, commitMessage?: string): string {
+export function buildPrBody(
+  branch: string,
+  base: string,
+  commitMessage?: string,
+  repoTemplate?: string
+): string {
   const type = typeOfChangeFromBranch(branch);
   const commitLine = commitMessage ? commitMessage.split("\n")[0].trim() : "";
   const title = prTitleFromBranch(branch, commitMessage);
+  const template = repoTemplate && repoTemplate.trim().length > 0 ? repoTemplate : PR_TEMPLATE;
 
-  const body = PR_TEMPLATE.replace(
+  const body = template.replace(
     "Provide a clear and concise description of the changes implemented.",
     `Automated PR for branch \`${branch}\`.` +
       (commitLine ? `\n\n**Latest commit:** ${commitLine}` : "") +

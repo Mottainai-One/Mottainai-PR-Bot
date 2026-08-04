@@ -82,6 +82,47 @@ export async function findOpenPr(
   return data.length > 0 ? data[0].number : null;
 }
 
+const TEMPLATE_PATHS = [
+  "pull_request_template.md",
+  ".github/pull_request_template.md",
+  "docs/pull_request_template.md",
+];
+
+export async function fetchRepoPrTemplate(
+  context: Context,
+  owner: string,
+  repo: string,
+  base: string
+): Promise<string | undefined> {
+  const refs = [base];
+  try {
+    const { data } = await context.octokit.repos.get({ owner, repo });
+    if (data.default_branch && !refs.includes(data.default_branch)) refs.push(data.default_branch);
+  } catch {
+    // sem acesso ao repo metadata
+  }
+
+  for (const ref of refs) {
+    for (const path of TEMPLATE_PATHS) {
+      try {
+        const { data } = await context.octokit.repos.getContent({
+          owner,
+          repo,
+          path,
+          ref,
+        });
+        if ("content" in data && typeof data.content === "string") {
+          const content = Buffer.from(data.content, "base64").toString("utf8");
+          if (content.trim().length > 0) return content;
+        }
+      } catch {
+        // caminho nao existe neste ref; tenta o proximo
+      }
+    }
+  }
+  return undefined;
+}
+
 export async function createPullRequest(
   context: Context,
   owner: string,
@@ -91,7 +132,8 @@ export async function createPullRequest(
   firstCommitMessage?: string
 ): Promise<number> {
   const title = prTitleFromBranch(branch, firstCommitMessage);
-  const body = buildPrBody(branch, base, firstCommitMessage);
+  const repoTemplate = await fetchRepoPrTemplate(context, owner, repo, base);
+  const body = buildPrBody(branch, base, firstCommitMessage, repoTemplate);
 
   const { data: pr } = await context.octokit.pulls.create({
     owner,
