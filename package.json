@@ -12,6 +12,7 @@
     "dev": "node node_modules/tsx/dist/cli.mjs watch src/server.ts",
     "dev:smee": "node scripts/dev.mjs",
     "start": "node dist/server.js",
+    "test": "node node_modules/tsx/dist/cli.mjs --test tests/retry.test.ts",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"
   },
   "keywords": [

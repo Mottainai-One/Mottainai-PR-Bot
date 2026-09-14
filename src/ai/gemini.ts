@@ -1,11 +1,14 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { config } from "../config.js";
 import type { PrReviewResult } from "./types.js";
+import { retryWithBackoff } from "./retry.js";
+
+type RetryLogger = (message: string) => void;
 
 export class GeminiClient {
   private readonly client: GoogleGenerativeAI;
 
-  constructor() {
+  constructor(private readonly logRetry?: RetryLogger) {
     if (!config.geminiApiKey) {
       throw new Error("GEMINI_API_KEY não configurada");
     }
@@ -21,7 +24,16 @@ export class GeminiClient {
       },
     });
 
-    const result = await model.generateContent(prompt);
+    const result = await retryWithBackoff(() => model.generateContent(prompt), {
+      maxAttempts: config.geminiMaxAttempts,
+      baseDelayMs: config.geminiRetryBaseDelayMs,
+      onRetry: (error, nextAttempt, delayMs) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logRetry?.(
+          `Gemini indisponivel (${message}); nova tentativa ${nextAttempt}/${config.geminiMaxAttempts} em ${delayMs}ms`
+        );
+      },
+    });
     const text = result.response.text();
     return this.parseJson(text);
   }

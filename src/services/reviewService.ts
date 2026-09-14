@@ -51,7 +51,7 @@ export async function generateReview(context: Context, owner: string, repo: stri
   });
 
   context.log.info(`Enviando diff de ${files.length} arquivos para ${config.geminiModel}...`);
-  const client = new GeminiClient();
+  const client = new GeminiClient((message) => context.log.warn(message));
   const review = await client.generateReview(prompt);
   context.log.info(`Review gerado: ${review.recommendation} (${review.issuesFound.length} issues)`);
   return review;

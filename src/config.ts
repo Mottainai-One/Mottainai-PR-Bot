@@ -38,6 +38,8 @@ export const config = {
   prBaseBranch: process.env.PR_BASE_BRANCH || "",
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   geminiModel: process.env.GEMINI_MODEL || "gemini-1.5-flash",
+  geminiMaxAttempts: asNumber(process.env.GEMINI_MAX_ATTEMPTS, 4),
+  geminiRetryBaseDelayMs: asNumber(process.env.GEMINI_RETRY_BASE_DELAY_MS, 2_000),
   port: asNumber(process.env.PORT, 3000),
   baseUrl: process.env.BASE_URL || "http://localhost:3000",
   webhookProxyUrl: process.env.WEBHOOK_PROXY_URL || "",

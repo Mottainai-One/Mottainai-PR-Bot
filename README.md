@@ -165,5 +165,7 @@ src/
 | `PROTECTED_BRANCHES` | `main,develop` | Branches que não geram PR |
 | `GEMINI_API_KEY` | — | Chave do Google AI Studio |
 | `GEMINI_MODEL` | `gemini-1.5-flash` | Modelo do Gemini |
+| `GEMINI_MAX_ATTEMPTS` | `4` | Total de tentativas em erros temporários da API |
+| `GEMINI_RETRY_BASE_DELAY_MS` | `2000` | Backoff inicial entre tentativas, em milissegundos |
 | `PORT` | `3000` | Porta do servidor |
 | `WEBHOOK_PROXY_URL` | — | URL do Smee (dev) |
