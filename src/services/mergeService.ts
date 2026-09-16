@@ -16,7 +16,7 @@ export async function ensureBranchProtection(
       enforce_admins: true,
       required_pull_request_reviews: {
         required_approving_review_count: config.minApprovals,
-        dismiss_stale_reviews: true,
+        dismiss_stale_reviews: false,
         require_code_owner_reviews: false,
       },
       restrictions: null,
@@ -35,6 +35,28 @@ export async function ensureBranchProtection(
 export interface MergeCheckResult {
   canMerge: boolean;
   reasons: string[];
+}
+
+type ReviewState = "APPROVED" | "CHANGES_REQUESTED" | "DISMISSED";
+
+export function summarizeReviews(
+  reviews: { user?: { login?: string } | null; state: string }[]
+): { approvers: number; hasChangesRequested: boolean } {
+  const latestPerUser = new Map<string, ReviewState>();
+
+  for (const review of reviews) {
+    const login = review.user?.login;
+    if (!login) continue;
+    if (review.state === "APPROVED" || review.state === "CHANGES_REQUESTED" || review.state === "DISMISSED") {
+      latestPerUser.set(login, review.state);
+    }
+  }
+
+  const states = [...latestPerUser.values()];
+  return {
+    approvers: states.filter((state) => state === "APPROVED").length,
+    hasChangesRequested: states.includes("CHANGES_REQUESTED"),
+  };
 }
 
 export async function checkMergeConditions(
@@ -56,19 +78,12 @@ export async function checkMergeConditions(
   }
 
   const { data: reviews } = await context.octokit.pulls.listReviews({ owner, repo, pull_number: prNumber, per_page: 100 });
-  const latestPerUser = new Map<string, string>();
-  for (const r of reviews) {
-    if (!r.user) continue;
-    if (r.state === "APPROVED" || r.state === "CHANGES_REQUESTED") {
-      latestPerUser.set(r.user.login, r.state);
-    }
-  }
-  const approvers = [...latestPerUser.entries()].filter(([, state]) => state === "APPROVED").length;
+  const { approvers, hasChangesRequested } = summarizeReviews(reviews);
 
   if (approvers < config.minApprovals) {
     reasons.push(`Faltam approvals (${approvers}/${config.minApprovals})`);
   }
-  if ([...latestPerUser.values()].includes("CHANGES_REQUESTED")) {
+  if (hasChangesRequested) {
     reasons.push("Existe pedido de alteracoes pendente");
   }
 
