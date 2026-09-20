@@ -9,10 +9,44 @@ export interface ReviewContext {
   files: { path: string; additions: number; deletions: number; patch: string }[];
 }
 
+const MAX_PATCH_PREVIEW_CHARS = 6000;
+
+function countChangedLines(patch: string): number {
+  return patch.split("\n").filter((line) => {
+    if (line.startsWith("+++") || line.startsWith("---")) return false;
+    return line.startsWith("+") || line.startsWith("-");
+  }).length;
+}
+
+export function buildPatchPreview(file: ReviewContext["files"][number]): string {
+  if (!file.patch) return "(patch unavailable; do not infer that the source file is empty)";
+
+  const expectedChangedLines = file.additions + file.deletions;
+  const githubPreviewIsPartial = countChangedLines(file.patch) < expectedChangedLines;
+  const promptPreviewIsPartial = file.patch.length > MAX_PATCH_PREVIEW_CHARS;
+
+  if (!githubPreviewIsPartial && !promptPreviewIsPartial) return file.patch;
+
+  const omittedByPrompt = Math.max(0, file.patch.length - MAX_PATCH_PREVIEW_CHARS);
+  const marker = [
+    "",
+    `... [PATCH PREVIEW TRUNCATED: source diff has ${expectedChangedLines} changed lines; ${omittedByPrompt} characters omitted by prompt limit] ...`,
+    "... [THIS MARKER IS NOT END-OF-FILE. DO NOT REPORT AN INCOMPLETE FILE ONLY BECAUSE CONTENT IS OMITTED HERE.] ...",
+    "",
+  ].join("\n");
+
+  if (!promptPreviewIsPartial) return `${file.patch}${marker}`;
+
+  const availableChars = Math.max(0, MAX_PATCH_PREVIEW_CHARS - marker.length);
+  const headChars = Math.ceil(availableChars / 2);
+  const tailChars = Math.floor(availableChars / 2);
+  return `${file.patch.slice(0, headChars)}${marker}${file.patch.slice(-tailChars)}`;
+}
+
 export function buildReviewPrompt(ctx: ReviewContext): string {
   const fileList = ctx.files
     .map((f) => {
-      const patch = f.patch ? f.patch.slice(0, 6000) : "";
+      const patch = buildPatchPreview(f);
       return `### ${f.path} (+${f.additions} / -${f.deletions})\n\`\`\`diff\n${patch}\n\`\`\``;
     })
     .join("\n\n");
@@ -30,6 +64,11 @@ export function buildReviewPrompt(ctx: ReviewContext): string {
 ${commits || "- (no commits listed)"}
 
 ## Diff (files changed: ${ctx.files.length})
+Diff blocks are review previews, not authoritative full-file contents. A truncation marker means the bot omitted
+the middle of a large patch while preserving its beginning and end. Never claim that a file, function, table,
+or document is incomplete solely because a preview is truncated or content is omitted. Report truncation only
+when the visible source contains concrete, unambiguous evidence of an incomplete construct.
+
 ${fileList || "(empty diff)"}
 
 ## Task
