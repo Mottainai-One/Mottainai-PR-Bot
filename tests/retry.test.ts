@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isRetryableGeminiError, retryWithBackoff } from "../src/ai/retry.js";
+import { isRetryableGeminiError, retryAcrossModels, retryWithBackoff } from "../src/ai/retry.js";
 
 test("identifica o erro 503 retornado pelo SDK do Gemini", () => {
   const error = new Error(
@@ -67,4 +67,58 @@ test("interrompe depois do numero maximo de tentativas", async () => {
   );
 
   assert.equal(attempts, 3);
+});
+
+test("usa modelo alternativo quando o principal segue em 503", async () => {
+  const attempted: string[] = [];
+  const fallback: string[] = [];
+  const result = await retryAcrossModels(
+    ["principal", "alternativo"],
+    async (model) => {
+      attempted.push(model);
+      if (model === "principal") throw Object.assign(new Error("high demand"), { status: 503 });
+      return "review gerado";
+    },
+    {
+      maxAttempts: 2,
+      baseDelayMs: 0,
+      onFallback: (from, to) => fallback.push(`${from}->${to}`),
+    }
+  );
+
+  assert.equal(result, "review gerado");
+  assert.deepEqual(attempted, ["principal", "principal", "alternativo"]);
+  assert.deepEqual(fallback, ["principal->alternativo"]);
+});
+
+test("nao usa modelo alternativo para erro permanente", async () => {
+  const attempted: string[] = [];
+  await assert.rejects(
+    retryAcrossModels(
+      ["principal", "alternativo"],
+      async (model) => {
+        attempted.push(model);
+        throw Object.assign(new Error("credencial invalida"), { status: 401 });
+      },
+      { maxAttempts: 2, baseDelayMs: 0 }
+    ),
+    /credencial invalida/
+  );
+  assert.deepEqual(attempted, ["principal"]);
+});
+
+test("nao repete o mesmo modelo configurado como fallback", async () => {
+  const attempted: string[] = [];
+  await assert.rejects(
+    retryAcrossModels(
+      ["principal", "principal"],
+      async (model) => {
+        attempted.push(model);
+        throw Object.assign(new Error("indisponivel"), { status: 503 });
+      },
+      { maxAttempts: 2, baseDelayMs: 0 }
+    ),
+    /indisponivel/
+  );
+  assert.deepEqual(attempted, ["principal", "principal"]);
 });
