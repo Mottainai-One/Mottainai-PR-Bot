@@ -22,6 +22,8 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-3.1-flash-lite
+      - key: GEMINI_FALLBACK_MODEL
+        value: gemini-2.5-flash-lite
       - key: MIN_APPROVALS
         value: "2"
       - key: PROTECTED_BRANCHES
