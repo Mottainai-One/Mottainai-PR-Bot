@@ -4,7 +4,7 @@
 
 **GitHub App que automatiza o ciclo de Pull Requests da organização Mottainai-One**
 
-*Push numa branch de trabalho vira PR, o diff é revisado por IA (Google Gemini), o autor decide se aplica a descrição sugerida e o merge (squash) acontece sozinho depois de 2 aprovações humanas e checks verdes.*
+*Push numa branch de trabalho pode abrir PR, o diff é revisado por IA (Google Gemini), e o bot tenta fazer o merge conforme os critérios configurados. A consulta de checks tem uma limitação de segurança descrita abaixo.*
 
 <br/>
 
@@ -47,10 +47,10 @@ O **Mottainai** (もったいない, *"que desperdício"*) é um sistema de gest
 | **2** | **Revisão por IA**: o diff e os commits vão para o Gemini, que devolve um JSON com veredito, resumo, tipo, problemas e descrição sugerida | `src/handlers/prHandler.ts`, `src/services/reviewService.ts`, `src/ai/*` |
 | **3** | **Descrição sob aceite do autor**: o label `ai:apply-description`, aplicado **pelo autor do PR**, reescreve o corpo do PR com a sugestão da IA | `src/handlers/labelHandler.ts` |
 | **4** | **Branch protection automática**: a branch base do PR passa a exigir `MIN_APPROVALS` aprovações | `src/services/mergeService.ts` (`ensureBranchProtection`) |
-| **5** | **Auto-merge (squash)**: com aprovações suficientes, sem pedido de mudança pendente, PR mergeável e checks OK | `src/handlers/reviewHandler.ts`, `src/services/mergeService.ts` |
+| **5** | **Auto-merge (squash)**: tenta aplicar os critérios de aprovação, revisão e checks; falhas na consulta dos checks são tratadas como sucesso | `src/handlers/reviewHandler.ts`, `src/services/mergeService.ts` |
 
 > [!NOTE]
-> O veredito da IA (`APPROVE` / `REQUEST_CHANGES` / `COMMENT`) é **apenas consultivo**: ele vira comentário e labels `ai-review:*`, mas **não entra** nas condições de auto-merge. Quem decide são as aprovações humanas e os checks.
+> O veredito da IA (`APPROVE` / `REQUEST_CHANGES` / `COMMENT`) é **apenas consultivo**: ele vira comentário e labels `ai-review:*`, mas **não entra** nas condições de auto-merge. O bot conta reviews e consulta os checks, mas uma falha nessa consulta pode permitir que o processo continue.
 
 ---
 
@@ -98,7 +98,7 @@ flowchart LR
 | Camada | Pasta | Responsabilidade |
 |---|---|---|
 | Bootstrap | `src/server.ts`, `src/index.ts`, `src/config.ts` | Sobe o Probot, carrega `.env` e aborta o registro dos handlers se faltar `APP_ID`, `PRIVATE_KEY`, `WEBHOOK_SECRET` ou `GEMINI_API_KEY` |
-| Handlers | `src/handlers/` | Um arquivo por grupo de eventos do GitHub; filtram repositórios ignorados, bots e drafts |
+| Handlers | `src/handlers/` | Um arquivo por grupo de eventos do GitHub; tratam eventos de push, PR, reviews e labels; o handler de abertura ignora PRs em rascunho |
 | Serviços | `src/services/` | Regras de negócio: base do PR, template, labels, review, proteção de branch, condições de merge |
 | IA | `src/ai/` | Prompt, cliente Gemini em modo JSON, retry com backoff e tipos do resultado |
 | GitHub utils | `src/github/` | Template padrão de PR e geração de título a partir da branch/commit |
