@@ -63,3 +63,25 @@ export async function retryWithBackoff<T>(operation: () => Promise<T>, options: 
 
   throw new Error("Retry loop terminou inesperadamente");
 }
+
+export async function retryAcrossModels<T>(
+  models: string[],
+  operation: (model: string) => Promise<T>,
+  options: RetryOptions & { onFallback?: (failedModel: string, nextModel: string) => void }
+): Promise<T> {
+  const uniqueModels = [...new Set(models.map((model) => model.trim()).filter(Boolean))];
+  if (uniqueModels.length === 0) throw new Error("Nenhum modelo Gemini configurado");
+
+  for (let index = 0; index < uniqueModels.length; index += 1) {
+    const model = uniqueModels[index];
+    try {
+      return await retryWithBackoff(() => operation(model), options);
+    } catch (error) {
+      const nextModel = uniqueModels[index + 1];
+      if (!nextModel || !isRetryableGeminiError(error)) throw error;
+      options.onFallback?.(model, nextModel);
+    }
+  }
+
+  throw new Error("Nenhum modelo Gemini respondeu");
+}

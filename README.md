@@ -5,6 +5,7 @@ GitHub App que automatiza o ciclo de Pull Requests na organização **Mottainai-
 1. **Auto-PR** — todo push em uma branch de trabalho cria automaticamente um PR para `main` (com o template padrão da organização).
 2. **Validação por IA (Gemini)** — ao abrir/atualizar o PR, um chatbot analisa o diff e posta: veredito, resumo, tipo de mudança, pontos de atenção e uma descrição sugerida.
 3. **Descrição sob aceite do desenvolvedor** — o autor adiciona o label `ai:apply-description` no PR e a descrição sugerida é aplicada ao corpo do PR.
+   Se a validação falhar temporariamente, um colaborador com permissão para gerenciar labels pode adicionar `ai:retry-review` para reexecutá-la sem novo push. O bot remove esse label ao terminar.
 4. **2 approvals + auto-merge** — quando 2 pessoas aprovam e todos os checks passam, o PR é mergeado (squash). A branch protection é configurada automaticamente para exigir os 2 approvals.
 
 > **Requisito:** Node.js 20 LTS ou superior (recomendado). O projeto funciona em Node 18, mas as dependências oficiais exigem 20+.
@@ -165,6 +166,7 @@ src/
 | `PROTECTED_BRANCHES` | `main,develop` | Branches que não geram PR |
 | `GEMINI_API_KEY` | — | Chave do Google AI Studio |
 | `GEMINI_MODEL` | `gemini-1.5-flash` | Modelo do Gemini |
+| `GEMINI_FALLBACK_MODEL` | `gemini-2.5-flash-lite` | Modelo alternativo para indisponibilidade temporária do principal |
 | `GEMINI_MAX_ATTEMPTS` | `4` | Total de tentativas em erros temporários da API |
 | `GEMINI_RETRY_BASE_DELAY_MS` | `2000` | Backoff inicial entre tentativas, em milissegundos |
 | `PORT` | `3000` | Porta do servidor |

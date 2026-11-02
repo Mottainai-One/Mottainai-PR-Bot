@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { config } from "../config.js";
 import type { PrReviewResult } from "./types.js";
-import { retryWithBackoff } from "./retry.js";
+import { retryAcrossModels } from "./retry.js";
 
 type RetryLogger = (message: string) => void;
 
@@ -16,15 +16,16 @@ export class GeminiClient {
   }
 
   async generateReview(prompt: string): Promise<PrReviewResult> {
-    const model = this.client.getGenerativeModel({
-      model: config.geminiModel,
-      generationConfig: {
-        temperature: 0.2,
-        responseMimeType: "application/json",
-      },
-    });
-
-    const result = await retryWithBackoff(() => model.generateContent(prompt), {
+    const result = await retryAcrossModels([config.geminiModel, config.geminiFallbackModel], (modelName) => {
+      const model = this.client.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: "application/json",
+        },
+      });
+      return model.generateContent(prompt);
+    }, {
       maxAttempts: config.geminiMaxAttempts,
       baseDelayMs: config.geminiRetryBaseDelayMs,
       onRetry: (error, nextAttempt, delayMs) => {
@@ -32,6 +33,9 @@ export class GeminiClient {
         this.logRetry?.(
           `Gemini indisponivel (${message}); nova tentativa ${nextAttempt}/${config.geminiMaxAttempts} em ${delayMs}ms`
         );
+      },
+      onFallback: (failedModel, nextModel) => {
+        this.logRetry?.(`Gemini ${failedModel} indisponivel apos as tentativas; usando ${nextModel}`);
       },
     });
     const text = result.response.text();
